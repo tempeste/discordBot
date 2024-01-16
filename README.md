@@ -13,8 +13,8 @@ This project is focused on creating a fun, interactive music player bot for Disc
 ## Task Checklist
 - [x] Set up basic Discord bot infrastructure.
 - [x] Enable bot to join and leave voice channels.
-- [ ] Integrate YouTube API for searching and playing videos.
-- [ ] Implement a command to search for YouTube videos and display results.
+- [x] Integrate YouTube API for searching and playing videos.
+- [x] Implement a command to search for YouTube videos and display results.
 - [ ] Add functionality to play audio from YouTube videos in voice channels.
 - [ ] Develop a queue system for song playback.
 - [ ] Create additional playback control commands (e.g., pause, stop, skip).
@@ -23,9 +23,6 @@ This project is focused on creating a fun, interactive music player bot for Disc
 - [ ] Configure CI/CD pipeline for automated deployment.
 - [ ] Integrate Prometheus for monitoring and metrics.
 - [ ] Deploy the bot on a Beelink mini PC.
-- [ ] Test all functionalities extensively.
-- [ ] Write comprehensive documentation for users and contributors.
-- [ ] Gather feedback and iterate on features and performance.
 
 ## Future Enhancements
 - Enhance user interaction with more complex commands.

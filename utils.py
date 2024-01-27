@@ -12,7 +12,7 @@ def search_youtube(youtube, search_query):
     return request.execute()
 
 async def check_palworld_server():
-    command = "./pwserver details"
+    command = "/pwserver details"
     result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
     status_output = result.stdout
 
@@ -26,7 +26,7 @@ async def check_palworld_server():
     return internet_ip, resource_usage, server_status
 
 async def restart_palworld_server():
-    command = "./pwserver restart"
+    command = "/pwserver restart"
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     try:

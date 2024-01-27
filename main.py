@@ -26,8 +26,8 @@ async def ping(ctx):
     await ctx.send('Pong!')
 
 @client.command()
-async def hello(ctx):
-    await ctx.send('Hello!')
+async def ip(ctx):
+    await ctx.send(utils.get_current_ip())
 
 # Voice-related commands
 @client.command(pass_context=True)
@@ -46,11 +46,31 @@ async def leave(ctx):
     await ctx.voice_client.disconnect()
 
 # Init youtube service instance
-youtube = build("youtube", "v3", developerKey=gcp_api_key)
+youtube = None
+
+@client.command()
+async def disable_youtube(ctx):
+    global youtube
+    youtube = None
+    await ctx.send("Youtube search disabled.")
+    
+@client.command()
+async def enable_youtube(ctx):
+    global youtube
+    youtube = build("youtube", "v3", developerKey=gcp_api_key)
+    await ctx.send("Youtube search enabled.")
 
 @client.command()
 async def search(ctx, *, search_query):
+    if youtube is None:
+        await ctx.send("YouTube search is currently disabled. Please enable it first.")
+        return
+
     response = utils.search_youtube(youtube, search_query)
+
+    if not response or "items" not in response:
+        await ctx.send("No results found or an error occurred.")
+        return
 
     message = "Top 10 results found:\n"
     for item in response.get("items", []):

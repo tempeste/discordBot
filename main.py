@@ -83,22 +83,20 @@ async def search(ctx, *, search_query):
 @client.command()
 async def check_server(ctx):
     try:
-        internet_ip, resource_usage, server_status = await utils.check_palworld_server()
+        internet_ip, cpu_usage, mem_usage, server_status = await utils.check_palworld_server()
 
         # Set embed color based on server status
         color = 0x2ecc71 if server_status == "STARTED" else 0xe74c3c
+        thumbnail_url = "https://static.wikia.nocookie.net/palworld/images/3/3e/Screen_%281%29.jpg/revision/latest/scale-to-width-down/1200?cb=20210911235311" if server_status == "STARTED" else "https://cdn.vox-cdn.com/uploads/chorus_image/image/73067966/ss_8ef8a16df5e357df5341efdb814192835814107f.0.jpg"
 
         embed = discord.Embed(title="🌐 Palworld Server Status", color=color)
         embed.add_field(name="🔗 Internet IP", value=internet_ip, inline=True)
-
-        # Formatting resource usage for better presentation
-        cpu_usage, mem_usage = resource_usage.split("Mem Used:", 1)
         embed.add_field(name="🖥️ CPU Usage", value=cpu_usage, inline=True)
-        embed.add_field(name="💾 Memory Usage", value=f"Mem Used: {mem_usage}", inline=True)
+        embed.add_field(name="💾 Memory Usage", value=mem_usage, inline=True)
 
         embed.set_footer(text=f"Server Status: {server_status}")
-        embed.set_thumbnail(url="https://cdn.vox-cdn.com/uploads/chorus_image/image/73067966/ss_8ef8a16df5e357df5341efdb814192835814107f.0.jpg") 
-        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        embed.set_thumbnail(url=thumbnail_url)
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
         await ctx.send(embed=embed)
     except subprocess.CalledProcessError as e:

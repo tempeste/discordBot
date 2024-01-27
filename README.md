@@ -18,15 +18,18 @@ This project centers on developing a versatile and engaging music player bot for
 
 - **Voice Channel Interaction**: The bot has the ability to join and leave voice channels, providing an interactive experience for server members.
 
-- **External IP Address Reporting**: A crucial administrative feature of the bot is its ability to report the host machine's external IP address. This functionality is essential for the efficient administration and troubleshooting of the Palworld server, especially in the absence of a DDNS setup.
-
+- **Palworld Server Administration Features**: The bot includes specialized commands for managing and monitoring the Palworld server:
+    - `check_server`: Retrieves and displays the Palworld server's status, including the Internet IP and resource usage, formatted in an engaging Discord embed.
+    - `restart_server`: Allows for restarting the Palworld server, ensuring that this critical administrative function is easily accessible. This command is restricted to the bot owner for security reasons.
 
 ## Task Checklist
 - [x] Set up basic Discord bot infrastructure.
 - [x] Enable bot to join and leave voice channels.
 - [x] Integrate YouTube API for searching and playing videos.
 - [x] Implement a command to search for YouTube videos and display results.
-- [x] Implement a command that outputs the host machine's ip address.
+~~ [x] Implement a command that outputs the host machine's ip address.~~
+- [x] Implement a command to query palworld server status and usage
+- [x] Implement a command to restart palworld server
 - [ ] Add functionality to play audio from YouTube videos in voice channels.
 - [ ] Develop a queue system for song playback.
 - [ ] Create additional playback control commands (e.g., pause, stop, skip).
@@ -41,3 +44,4 @@ This project centers on developing a versatile and engaging music player bot for
 - Add more robust error handling and logging.
 - Consider integrating other music streaming platforms.
 - Explore advanced features like voice recognition or custom playlists.
+- Enable the bot to modify palworld server params.

@@ -1,5 +1,8 @@
 import discord
 import os
+import subprocess
+import re
+import asyncio
 import utils
 from discord.ext import commands
 from discord import FFmpegPCMAudio
@@ -24,10 +27,6 @@ async def on_ready():
 @client.command()
 async def ping(ctx):
     await ctx.send('Pong!')
-
-@client.command()
-async def ip(ctx):
-    await ctx.send(utils.get_current_ip())
 
 # Voice-related commands
 @client.command(pass_context=True)
@@ -80,6 +79,47 @@ async def search(ctx, *, search_query):
         message += f"{title}\n{url}\n\n"
     
     await ctx.send(message)
-    
+
+@client.command()
+async def check_server(ctx):
+    try:
+        internet_ip, resource_usage, server_status = await utils.check_palworld_server()
+
+        # Set embed color based on server status
+        color = 0x2ecc71 if server_status == "STARTED" else 0xe74c3c
+
+        embed = discord.Embed(title="🌐 Palworld Server Status", color=color)
+        embed.add_field(name="🔗 Internet IP", value=internet_ip, inline=True)
+
+        # Formatting resource usage for better presentation
+        cpu_usage, mem_usage = resource_usage.split("Mem Used:", 1)
+        embed.add_field(name="🖥️ CPU Usage", value=cpu_usage, inline=True)
+        embed.add_field(name="💾 Memory Usage", value=f"Mem Used: {mem_usage}", inline=True)
+
+        embed.set_footer(text=f"Server Status: {server_status}")
+        embed.set_thumbnail(url="https://cdn.vox-cdn.com/uploads/chorus_image/image/73067966/ss_8ef8a16df5e357df5341efdb814192835814107f.0.jpg") 
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+
+        await ctx.send(embed=embed)
+    except subprocess.CalledProcessError as e:
+        await ctx.send(f"Failed to get Palworld Server status: {e}")
+
+@client.command()
+@commands.is_owner()
+async def restart_server(ctx):
+    try:
+        returncode, stdout, stderr = await utils.restart_palworld_server()
+
+        if returncode is None:
+            await ctx.send("Timeout occurred while restarting the LGSM server.")
+            return
+
+        if returncode == 0:
+            await ctx.send(f"LGSM server restarted successfully.\n```{stdout}```")
+        else:
+            await ctx.send(f"Failed to restart LGSM server.\nError:```{stderr}```")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
+
 if __name__ == "__main__":
-    client.run(bot_token)   
+    client.run(bot_token)

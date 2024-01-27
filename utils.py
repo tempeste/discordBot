@@ -1,4 +1,6 @@
-import requests
+import subprocess
+import re
+import asyncio
 
 def search_youtube(youtube, search_query):
     request = youtube.search().list(
@@ -9,12 +11,26 @@ def search_youtube(youtube, search_query):
     )
     return request.execute()
 
-def get_current_ip():
+async def check_palworld_server():
+    command = "./pwserver details"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+    status_output = result.stdout
+
+    # Extracting the 'Internet IP' and 'Palworld Resource Usage' sections
+    internet_ip = re.search(r"Internet IP:\s*(.+)", status_output).group(1)
+    resource_usage = re.search(r"Palworld Resource Usage.+?CPU Used:\s*(.+?)Mem Used:\s*(.+)", status_output, re.DOTALL).group(0)
+    
+    # Extracting the server status
+    server_status = re.search(r"Status:\s*(\w+)", status_output).group(1)
+
+    return internet_ip, resource_usage, server_status
+
+async def restart_palworld_server():
+    command = "./pwserver restart"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
     try:
-        response = requests.get('http://api.ipify.org')
-        if response.status_code == 200:
-            return response.text  # Returns the IP address as a string
-        else:
-            return "Error: Unable to fetch IP address"
-    except requests.RequestException:
-        return "Error: Request failed"
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=120)  # Timeout in seconds
+        return process.returncode, stdout, stderr
+    except asyncio.TimeoutError:
+        return None, None, "Timeout"

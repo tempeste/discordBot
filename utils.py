@@ -42,3 +42,23 @@ async def restart_palworld_server():
         return process.returncode, stdout, stderr
     except asyncio.TimeoutError:
         return None, None, "Timeout"
+    
+async def start_palworld_server():
+    command = "/home/pwserver/pwserver start"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    try:
+        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
+        return process.returncode, stdout, stderr
+    except asyncio.TimeoutError:
+        return None, None, "Timeout"
+    
+async def stop_palworld_server():
+    command = "/home/pwserver/pwserver stop"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    try:
+        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
+        return process.returncode, stdout, stderr
+    except asyncio.TimeoutError:
+        return None, None, "Timeout"

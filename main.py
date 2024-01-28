@@ -119,5 +119,39 @@ async def restart_server(ctx):
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
 
+@client.command()
+@commands.is_owner()
+async def stop_server(ctx):
+    try:
+        returncode, stdout, stderr = await utils.stop_palworld_server()
+
+        if returncode is None:
+            await ctx.send("Timeout occurred while stopping the LGSM server.")
+            return
+
+        if returncode == 0:
+            await ctx.send(f"LGSM server stopped successfully.\n```{stdout}```")
+        else:
+            await ctx.send(f"Failed to stop LGSM server.\nError:```{stderr}```")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
+
+# Allow non-owner users to start the server
+@client.command()
+async def start_server(ctx):
+    try:
+        returncode, stdout, stderr = await utils.start_palworld_server()
+
+        if returncode is None:
+            await ctx.send("Timeout occurred while starting the LGSM server.")
+            return
+
+        if returncode == 0:
+            await ctx.send(f"LGSM server started successfully.\n```{stdout}```")
+        else:
+            await ctx.send(f"Failed to start LGSM server.\nError:```{stderr}```")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
+
 if __name__ == "__main__":
     client.run(bot_token)

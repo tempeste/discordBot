@@ -21,6 +21,8 @@ This project centers on developing a versatile and engaging music player bot for
 - **Palworld Server Administration Features**: The bot includes specialized commands for managing and monitoring the Palworld server:
     - `check_server`: Retrieves and displays the Palworld server's status, including the Internet IP and resource usage, formatted in an engaging Discord embed.
     - `restart_server`: Allows for restarting the Palworld server, ensuring that this critical administrative function is easily accessible. This command is restricted to the bot owner for security reasons.
+    - `start_server`: Allows for non-bot owners to start the Palworld server as I intend to turn it off if not in use
+    - `stop_server`: Stops the server. This command is restricted to only the bot owner.
 
 ## Task Checklist
 - [x] Set up basic Discord bot infrastructure.
@@ -29,7 +31,7 @@ This project centers on developing a versatile and engaging music player bot for
 - [x] Implement a command to search for YouTube videos and display results.
 ~~ [x] Implement a command that outputs the host machine's ip address.~~
 - [x] Implement a command to query palworld server status and usage
-- [x] Implement a command to restart palworld server
+- [x] Implement a command to restart, start, and stop palworld server
 - [ ] Add functionality to play audio from YouTube videos in voice channels.
 - [ ] Develop a queue system for song playback.
 - [ ] Create additional playback control commands (e.g., pause, stop, skip).

@@ -1,10 +1,9 @@
 import discord
 import os
 import subprocess
-import re
-import asyncio
 import utils
-from discord.ext import commands
+import bot_tasks
+from discord.ext import commands, tasks
 from discord import FFmpegPCMAudio
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
@@ -23,6 +22,7 @@ client = commands.Bot(intents=intents, command_prefix = '!')
 async def on_ready():
     print('Bot is ready.')
     print("Logged in as: " + client.user.name + "\n")
+    bot_tasks.start_update_task(client)
     
 @client.command()
 async def ping(ctx):

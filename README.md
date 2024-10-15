@@ -42,6 +42,8 @@ This project centers on developing a versatile and engaging music player bot for
 - [x] Deploy the bot on a Beelink mini PC.
 - [ ] Refactor each functionality into a cog
 - [ ] Implement minecraft server management features
+- [ ] Allow new songs to be added while one is being played
+- [ ] Fix crash when /play command receives invalid input
 
 ## Future Enhancements
 - Enhance user interaction with more complex commands.

@@ -32,14 +32,16 @@ This project centers on developing a versatile and engaging music player bot for
 ~~ [x] Implement a command that outputs the host machine's ip address.~~
 - [x] Implement a command to query palworld server status and usage
 - [x] Implement a command to restart, start, and stop palworld server
-- [ ] Add functionality to play audio from YouTube videos in voice channels.
+- [x] Add functionality to play audio from YouTube videos in voice channels.
 - [ ] Develop a queue system for song playback.
 - [ ] Create additional playback control commands (e.g., pause, stop, skip).
 - [ ] Implement OAuth 2.0 for YouTube Playlist management (optional).
 - [ ] Set up a Docker container for the bot.
 - [ ] Configure CI/CD pipeline for automated deployment.
 - [ ] Integrate Prometheus for monitoring and metrics.
-- [ ] Deploy the bot on a Beelink mini PC.
+- [x] Deploy the bot on a Beelink mini PC.
+- [ ] Refactor each functionality into a cog
+- [ ] Implement minecraft server management features
 
 ## Future Enhancements
 - Enhance user interaction with more complex commands.

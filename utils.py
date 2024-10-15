@@ -2,14 +2,7 @@ import subprocess
 import re
 import asyncio
 
-def search_youtube(youtube, search_query):
-    request = youtube.search().list(
-        part="snippet",
-        q=search_query,
-        maxResults=10,
-        type="video"
-    )
-    return request.execute()
+last_searches = {}
 
 async def check_palworld_server():
     command = "/home/pwserver/pwserver details"
@@ -62,3 +55,22 @@ async def stop_palworld_server():
         return process.returncode, stdout, stderr
     except asyncio.TimeoutError:
         return None, None, "Timeout"
+
+def search_youtube(youtube, search_query, user_id):
+    request = youtube.search().list(
+        part="snippet",
+        q=search_query,
+        maxResults=5,
+        type="video"
+    )
+    response = request.execute()
+    
+    # Store the search results for this user
+    if "items" in response:
+        video_urls = [f"https://www.youtube.com/watch?v={item['id']['videoId']}" for item in response['items']]
+        last_searches[user_id] = video_urls
+    
+    return response
+
+def get_last_search(user_id):
+    return last_searches.get(user_id, [])

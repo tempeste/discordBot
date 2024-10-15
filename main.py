@@ -1,91 +1,170 @@
 import discord
+from discord import app_commands
 import os
 import subprocess
 import utils
 import bot_tasks
-from discord.ext import commands, tasks
-from discord import FFmpegPCMAudio
+from discord.ext import commands
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
+import asyncio
+import yt_dlp
+from discord.utils import get
 
 # Load environment variables
 load_dotenv()
 bot_token = os.getenv("BOT_TOKEN")
 gcp_api_key = os.getenv("GCP_API_KEY")
+owner_id = os.getenv("OWNER_ID")
 
 # Init client
 intents = discord.Intents.default()
 intents.message_content = True
-client = commands.Bot(intents=intents, command_prefix = '!')
-
-@client.event
-async def on_ready():
-    print('Bot is ready.')
-    print("Logged in as: " + client.user.name + "\n")
-    bot_tasks.start_update_task(client)
-    
-@client.command()
-async def ping(ctx):
-    await ctx.send('Pong!')
-
-# Voice-related commands
-@client.command(pass_context=True)
-async def join(ctx):
-    if (ctx.message.author.voice == None):
-        await ctx.send("You are not in a voice channel.")
-        return
-    channel = ctx.message.author.voice.channel
-    await channel.connect()
-
-@client.command(pass_context=True)
-async def leave(ctx):
-    if (ctx.voice_client == None):
-        await ctx.send("I am not in a voice channel.")
-        return
-    await ctx.voice_client.disconnect()
+client = commands.Bot(intents=intents, command_prefix='!')
 
 # Init youtube service instance
 youtube = None
 
-@client.command()
-async def disable_youtube(ctx):
+# Custom check for owner-only commands 
+def is_owner():
+    async def predicate(interaction: discord.Interaction):
+        return interaction.user.id == int(owner_id)
+    return app_commands.check(predicate)
+
+@client.event
+async def on_ready():
+    print('Bot is ready.')
+    print(f"Logged in as: {client.user.name}\n")
+    await client.tree.sync()
+    bot_tasks.start_update_task(client)
+
+@client.tree.command(name="ping", description="Check if the bot is responsive")
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message('Pong!')
+
+@client.tree.command(name="join", description="Join a voice channel")
+async def join(interaction: discord.Interaction):
+    if interaction.user.voice is None:
+        await interaction.response.send_message("You are not in a voice channel.")
+        return
+    channel = interaction.user.voice.channel
+    await channel.connect()
+    await interaction.response.send_message(f"Joined {channel.name}")
+
+@client.tree.command(name="leave", description="Leave the voice channel")
+async def leave(interaction: discord.Interaction):
+    if interaction.guild.voice_client is None:
+        await interaction.response.send_message("I am not in a voice channel.")
+        return
+    await interaction.guild.voice_client.disconnect()
+    await interaction.response.send_message("Left the voice channel")
+
+@client.tree.command(name="disable_youtube", description="Disable YouTube search")
+@is_owner()
+async def disable_youtube(interaction: discord.Interaction):
     global youtube
     youtube = None
-    await ctx.send("Youtube search disabled.")
-    
-@client.command()
-async def enable_youtube(ctx):
+    await interaction.response.send_message("Youtube search disabled.")
+
+@client.tree.command(name="enable_youtube", description="Enable YouTube search")
+@is_owner()
+async def enable_youtube(interaction: discord.Interaction):
     global youtube
     youtube = build("youtube", "v3", developerKey=gcp_api_key)
-    await ctx.send("Youtube search enabled.")
+    await interaction.response.send_message("Youtube search enabled.")
 
-@client.command()
-async def search(ctx, *, search_query):
+@client.tree.command(name="search", description="Search for YouTube videos")
+async def search(interaction: discord.Interaction, search_query: str):
     if youtube is None:
-        await ctx.send("YouTube search is currently disabled. Please enable it first.")
+        await interaction.response.send_message("YouTube search is currently disabled. Please enable it first.")
         return
 
-    response = utils.search_youtube(youtube, search_query)
+    response = utils.search_youtube(youtube, search_query, interaction.user.id)
 
     if not response or "items" not in response:
-        await ctx.send("No results found or an error occurred.")
+        await interaction.response.send_message("No results found or an error occurred.")
         return
 
-    message = "Top 10 results found:\n"
-    for item in response.get("items", []):
+    message = "Top 5 results found:\n"
+    for i, item in enumerate(response.get("items", [])[:5], start=1):
         title = item["snippet"]["title"]
         video_id = item["id"]["videoId"]
         url = f"https://www.youtube.com/watch?v={video_id}"
-        message += f"{title}\n{url}\n\n"
+        message += f"{i}. {title}\n{url}\n\n"
     
-    await ctx.send(message)
+    message += "To play a video, use the /play command with the number of the video (e.g., /play 1) or the full URL."
+    await interaction.response.send_message(message)
 
-@client.command()
-async def check_server(ctx):
+@client.tree.command(name="play", description="Play a YouTube video in voice channel")
+@app_commands.describe(query="Enter a search query, video number from search results, or YouTube URL")
+async def play(interaction: discord.Interaction, query: str):
+    if interaction.user.voice is None:
+        await interaction.response.send_message("You need to be in a voice channel to use this command.")
+        return
+
+    await interaction.response.defer()
+
+    voice_channel = interaction.user.voice.channel
+    voice_client = get(client.voice_clients, guild=interaction.guild)
+
+    if voice_client and voice_client.is_connected():
+        await voice_client.move_to(voice_channel)
+    else:
+        voice_client = await voice_channel.connect()
+
+    # Check if the query is a number (referring to search results)
+    if query.isdigit() and 1 <= int(query) <= 5:
+        # Get the last search results for this user
+        last_search = utils.get_last_search(interaction.user.id)
+        if not last_search:
+            await interaction.followup.send("Please use the /search command first.")
+            return
+        video_url = last_search[int(query) - 1]
+    elif query.startswith("https://"):
+        video_url = query
+    else:
+        # Treat as a new search query
+        search_response = utils.search_youtube(youtube, query, interaction.user.id)
+        if not search_response or "items" not in search_response:
+            await interaction.followup.send("No results found or an error occurred.")
+            return
+        video_url = f"https://www.youtube.com/watch?v={search_response['items'][0]['id']['videoId']}"
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=False)
+            url2 = info['url']
+            source = await discord.FFmpegOpusAudio.from_probe(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
+            
+        voice_client.play(source)
+        await interaction.followup.send(f"Now playing: {info['title']}")
+    except Exception as e:
+        await interaction.followup.send(f"An error occurred while trying to play the video: {str(e)}")
+
+
+@client.tree.command(name="stop", description="Stop playing audio and disconnect")
+async def stop(interaction: discord.Interaction):
+    voice_client = get(client.voice_clients, guild=interaction.guild)
+    if voice_client and voice_client.is_connected():
+        await voice_client.disconnect()
+        await interaction.response.send_message("Disconnected from voice channel and stopped playing.")
+    else:
+        await interaction.response.send_message("I'm not connected to a voice channel.")
+
+@client.tree.command(name="check_server", description="Check Palworld server status")
+async def check_server(interaction: discord.Interaction):
     try:
         internet_ip, cpu_usage, mem_usage, server_status = await utils.check_palworld_server()
 
-        # Set embed color based on server status
         color = 0x2ecc71 if server_status == "STARTED" else 0xe74c3c
         thumbnail_url = "https://static.wikia.nocookie.net/palworld/images/3/3e/Screen_%281%29.jpg/revision/latest/scale-to-width-down/1200?cb=20210911235311" if server_status == "STARTED" else "https://cdn.vox-cdn.com/uploads/chorus_image/image/73067966/ss_8ef8a16df5e357df5341efdb814192835814107f.0.jpg"
 
@@ -96,62 +175,64 @@ async def check_server(ctx):
 
         embed.set_footer(text=f"Server Status: {server_status}")
         embed.set_thumbnail(url=thumbnail_url)
-        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except subprocess.CalledProcessError as e:
-        await ctx.send(f"Failed to get Palworld Server status: {e}")
+        await interaction.response.send_message(f"Failed to get Palworld Server status: {e}")
 
-@client.command()
-@commands.is_owner()
-async def restart_server(ctx):
+@client.tree.command(name="restart_server", description="Restart the Palworld server")
+@is_owner()
+async def restart_server(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         returncode, stdout, stderr = await utils.restart_palworld_server()
 
         if returncode is None:
-            await ctx.send("Timeout occurred while restarting the LGSM server.")
+            await interaction.followup.send("Timeout occurred while restarting the LGSM server.")
             return
 
         if returncode == 0:
-            await ctx.send(f"LGSM server restarted successfully.\n```{stdout}```")
+            await interaction.followup.send(f"LGSM server restarted successfully.\n```{stdout}```")
         else:
-            await ctx.send(f"Failed to restart LGSM server.\nError:```{stderr}```")
+            await interaction.followup.send(f"Failed to restart LGSM server.\nError:```{stderr}```")
     except Exception as e:
-        await ctx.send(f"An error occurred: {e}")
+        await interaction.followup.send(f"An error occurred: {e}")
 
-@client.command()
-@commands.is_owner()
-async def stop_server(ctx):
+@client.tree.command(name="stop_server", description="Stop the Palworld server")
+@is_owner()
+async def stop_server(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         returncode, stdout, stderr = await utils.stop_palworld_server()
 
         if returncode is None:
-            await ctx.send("Timeout occurred while stopping the LGSM server.")
+            await interaction.followup.send("Timeout occurred while stopping the LGSM server.")
             return
 
         if returncode == 0:
-            await ctx.send(f"LGSM server stopped successfully.\n```{stdout}```")
+            await interaction.followup.send(f"LGSM server stopped successfully.\n```{stdout}```")
         else:
-            await ctx.send(f"Failed to stop LGSM server.\nError:```{stderr}```")
+            await interaction.followup.send(f"Failed to stop LGSM server.\nError:```{stderr}```")
     except Exception as e:
-        await ctx.send(f"An error occurred: {e}")
+        await interaction.followup.send(f"An error occurred: {e}")
 
-# Allow non-owner users to start the server
-@client.command()
-async def start_server(ctx):
+@client.tree.command(name="start_server", description="Start the Palworld server")
+async def start_server(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         returncode, stdout, stderr = await utils.start_palworld_server()
 
         if returncode is None:
-            await ctx.send("Timeout occurred while starting the LGSM server.")
+            await interaction.followup.send("Timeout occurred while starting the LGSM server.")
             return
 
         if returncode == 0:
-            await ctx.send(f"LGSM server started successfully.\n```{stdout}```")
+            await interaction.followup.send(f"LGSM server started successfully.\n```{stdout}```")
         else:
-            await ctx.send(f"Failed to start LGSM server.\nError:```{stderr}```")
+            await interaction.followup.send(f"Failed to start LGSM server.\nError:```{stderr}```")
     except Exception as e:
-        await ctx.send(f"An error occurred: {e}")
+        await interaction.followup.send(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     client.run(bot_token)

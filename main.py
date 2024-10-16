@@ -75,8 +75,10 @@ async def enable_youtube(interaction: discord.Interaction):
 
 @client.tree.command(name="search", description="Search for YouTube videos")
 async def search(interaction: discord.Interaction, search_query: str):
+    global youtube  # Make sure we're using the global youtube object
+
     if youtube is None:
-        await interaction.response.send_message("YouTube search is currently disabled. Please enable it first.")
+        await interaction.response.send_message("YouTube search is currently disabled. Please enable it first with /enable_youtube command.")
         return
 
     response = utils.search_youtube(youtube, search_query, interaction.user.id)
@@ -89,32 +91,31 @@ async def search(interaction: discord.Interaction, search_query: str):
     for i, item in enumerate(response.get("items", [])[:5], start=1):
         title = item["snippet"]["title"]
         video_id = item["id"]["videoId"]
-        url = f"https://www.youtube.com/watch?v={video_id}"
+        url = f"<https://www.youtube.com/watch?v={video_id}>"  # Use < > to prevent embedding
         message += f"{i}. {title}\n{url}\n\n"
     
     message += "To play a video, use the /play command with the number of the video (e.g., /play 1) or the full URL."
     await interaction.response.send_message(message)
 
-@client.tree.command(name="play", description="Play a YouTube video in voice channel")
+
+@client.tree.command(name="play", description="Play a YouTube video or add it to the playlist")
 @app_commands.describe(query="Enter a search query, video number from search results, or YouTube URL")
 async def play(interaction: discord.Interaction, query: str):
+    global youtube  # Make sure we're using the global youtube object
+
     if interaction.user.voice is None:
         await interaction.response.send_message("You need to be in a voice channel to use this command.")
         return
 
     await interaction.response.defer()
 
-    voice_channel = interaction.user.voice.channel
-    voice_client = get(client.voice_clients, guild=interaction.guild)
-
-    if voice_client and voice_client.is_connected():
-        await voice_client.move_to(voice_channel)
-    else:
+    voice_client = interaction.guild.voice_client
+    if not voice_client:
+        voice_channel = interaction.user.voice.channel
         voice_client = await voice_channel.connect()
 
-    # Check if the query is a number (referring to search results)
+    # Check if query is a number (referring to search results)
     if query.isdigit() and 1 <= int(query) <= 5:
-        # Get the last search results for this user
         last_search = utils.get_last_search(interaction.user.id)
         if not last_search:
             await interaction.followup.send("Please use the /search command first.")
@@ -124,6 +125,10 @@ async def play(interaction: discord.Interaction, query: str):
         video_url = query
     else:
         # Treat as a new search query
+        if youtube is None:
+            await interaction.followup.send("YouTube search is currently disabled. Please enable it first with /enable_youtube command.")
+            return
+        
         search_response = utils.search_youtube(youtube, query, interaction.user.id)
         if not search_response or "items" not in search_response:
             await interaction.followup.send("No results found or an error occurred.")
@@ -142,14 +147,86 @@ async def play(interaction: discord.Interaction, query: str):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
-            url2 = info['url']
-            source = await discord.FFmpegOpusAudio.from_probe(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
-            
-        voice_client.play(source)
-        await interaction.followup.send(f"Now playing: {info['title']}")
+            title = info['title']
+        
+        utils.add_to_playlist(interaction.guild.id, video_url, title, interaction.user.name)
+        
+        if not voice_client.is_playing():
+            await utils.play_next(client, interaction.guild.id, interaction.channel)
+            await interaction.followup.send(f"Now playing: {title}\nAdded to server playlist by {interaction.user.name}")
+        else:
+            await interaction.followup.send(f"Added to playlist: {title} (added by {interaction.user.name})")
     except Exception as e:
-        await interaction.followup.send(f"An error occurred while trying to play the video: {str(e)}")
+        await interaction.followup.send(f"An error occurred while trying to play/add the video: {str(e)}")
+        
+@client.tree.command(name="pause", description="Pause the currently playing audio")
+async def pause(interaction: discord.Interaction):
+    voice_client = get(client.voice_clients, guild=interaction.guild)
+    if voice_client and voice_client.is_playing():
+        voice_client.pause()
+        await interaction.response.send_message("Paused the audio.")
+    else:
+        await interaction.response.send_message("No audio is currently playing.")
 
+@client.tree.command(name="resume", description="Resume paused audio")
+async def resume(interaction: discord.Interaction):
+    voice_client = get(client.voice_clients, guild=interaction.guild)
+    if voice_client and voice_client.is_paused():
+        voice_client.resume()
+        await interaction.response.send_message("Resumed the audio.")
+    else:
+        await interaction.response.send_message("No audio is paused.")
+
+@client.tree.command(name="skip", description="Skip the current song")
+async def skip(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.stop()
+        await interaction.response.send_message("Skipped the current song.")
+        await utils.play_next(client, interaction.guild.id, interaction.channel)
+    else:
+        await interaction.response.send_message("No song is currently playing.")
+
+@client.tree.command(name="view_playlist", description="View the server's playlist")
+async def view_playlist(interaction: discord.Interaction):
+    playlist = utils.get_playlist(interaction.guild.id)
+    if not playlist:
+        await interaction.response.send_message("The server playlist is empty.")
+        return
+
+    message = "Server playlist:\n"
+    for i, (url, title, added_by) in enumerate(playlist, start=1):
+        message += f"{i}. {title} (added by {added_by})\n<{url}>\n\n"
+    
+    await interaction.response.send_message(message)
+
+@client.tree.command(name="shuffle_playlist", description="Shuffle the server's playlist")
+async def shuffle_playlist(interaction: discord.Interaction):
+    utils.shuffle_playlist(interaction.guild.id)
+    await interaction.response.send_message("The server playlist has been shuffled.")
+    await view_playlist(interaction)
+
+@client.tree.command(name="remove_from_playlist", description="Remove a song from the server's playlist")
+@app_commands.describe(index="The number of the song to remove")
+async def remove_from_playlist(interaction: discord.Interaction, index: int):
+    removed = utils.remove_from_playlist(interaction.guild.id, index - 1)
+    if removed:
+        await interaction.response.send_message(f"Removed '{removed[1]}' from the server playlist.")
+    else:
+        await interaction.response.send_message("Invalid index or the server playlist is empty.")
+
+@client.tree.command(name="clear_playlist", description="Clear the server's playlist")
+async def clear_playlist(interaction: discord.Interaction):
+    utils.clear_playlist(interaction.guild.id)
+    await interaction.response.send_message("The server playlist has been cleared.")
+
+@client.tree.command(name="loop", description="Toggle looping of the current playlist")
+async def loop(interaction: discord.Interaction):
+    is_looping = utils.toggle_loop(interaction.guild.id)
+    if is_looping:
+        await interaction.response.send_message("Playlist looping is now ON.")
+    else:
+        await interaction.response.send_message("Playlist looping is now OFF.")
 
 @client.tree.command(name="stop", description="Stop playing audio and disconnect")
 async def stop(interaction: discord.Interaction):

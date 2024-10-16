@@ -1,8 +1,13 @@
 import subprocess
 import re
 import asyncio
+import random
+import discord
+import yt_dlp
 
 last_searches = {}
+playlists = {}
+loop_status = {}
 
 async def check_palworld_server():
     command = "/home/pwserver/pwserver details"
@@ -65,7 +70,6 @@ def search_youtube(youtube, search_query, user_id):
     )
     response = request.execute()
     
-    # Store the search results for this user
     if "items" in response:
         video_urls = [f"https://www.youtube.com/watch?v={item['id']['videoId']}" for item in response['items']]
         last_searches[user_id] = video_urls
@@ -74,3 +78,85 @@ def search_youtube(youtube, search_query, user_id):
 
 def get_last_search(user_id):
     return last_searches.get(user_id, [])
+
+def add_to_playlist(server_id, song_url, song_title, added_by):
+    if server_id not in playlists:
+        playlists[server_id] = []
+    playlists[server_id].append((song_url, song_title, added_by))
+
+def remove_from_playlist(server_id, index):
+    if server_id in playlists and 0 <= index < len(playlists[server_id]):
+        return playlists[server_id].pop(index)
+    return None
+
+def get_playlist(server_id):
+    return playlists.get(server_id, [])
+
+def shuffle_playlist(server_id):
+    if server_id in playlists:
+        random.shuffle(playlists[server_id])
+
+def clear_playlist(server_id):
+    if server_id in playlists:
+        playlists[server_id].clear()
+        
+def toggle_loop(guild_id):
+    loop_status[guild_id] = not loop_status.get(guild_id, False)
+    return loop_status[guild_id]
+
+def is_looping(guild_id):
+    return loop_status.get(guild_id, False)
+        
+async def play_next(client, guild_id, text_channel):
+    playlist = get_playlist(guild_id)
+    if playlist or is_looping(guild_id):
+        if is_looping(guild_id) and len(playlist) > 0:
+            # If looping, move the last played song to the end of the playlist
+            last_song = playlist[0]
+            playlist.append(last_song)
+        
+        next_song = playlist.pop(0) if playlist else None
+        
+        if next_song is None and is_looping(guild_id):
+            # If the playlist is empty but looping is on, play the last song again
+            next_song = playlist[-1]
+        
+        if next_song:
+            url, title, added_by = next_song
+            
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }],
+            }
+
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    url2 = info['url']
+                    source = await discord.FFmpegOpusAudio.from_probe(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
+                
+                voice_client = discord.utils.get(client.voice_clients, guild__id=guild_id)
+                if voice_client:
+                    def after_playing(error):
+                        asyncio.run_coroutine_threadsafe(play_next(client, guild_id, text_channel), client.loop)
+
+                    voice_client.play(source, after=after_playing)
+                    await text_channel.send(f"Now playing: {title} (added by {added_by})")
+                else:
+                    await text_channel.send("Not connected to a voice channel.")
+            except Exception as e:
+                await text_channel.send(f"An error occurred while trying to play the next song: {str(e)}")
+        else:
+            voice_client = discord.utils.get(client.voice_clients, guild__id=guild_id)
+            if voice_client:
+                await voice_client.disconnect()
+            await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")
+    else:
+        voice_client = discord.utils.get(client.voice_clients, guild__id=guild_id)
+        if voice_client:
+            await voice_client.disconnect()
+        await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")

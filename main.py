@@ -242,6 +242,13 @@ async def check_server(interaction: discord.Interaction):
     try:
         internet_ip, cpu_usage, mem_usage, server_status = await utils.check_palworld_server()
 
+        if internet_ip.startswith("Error"):
+            await interaction.response.send_message(
+                f"❌ Failed to get server status: {internet_ip}", 
+                ephemeral=True
+            )
+            return
+
         color = 0x2ecc71 if server_status == "STARTED" else 0xe74c3c
         thumbnail_url = "https://static.wikia.nocookie.net/palworld/images/3/3e/Screen_%281%29.jpg/revision/latest/scale-to-width-down/1200?cb=20210911235311" if server_status == "STARTED" else "https://cdn.vox-cdn.com/uploads/chorus_image/image/73067966/ss_8ef8a16df5e357df5341efdb814192835814107f.0.jpg"
 
@@ -255,8 +262,11 @@ async def check_server(interaction: discord.Interaction):
         embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
 
         await interaction.response.send_message(embed=embed)
-    except subprocess.CalledProcessError as e:
-        await interaction.response.send_message(f"Failed to get Palworld Server status: {e}")
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ An unexpected error occurred: {str(e)}", 
+            ephemeral=True
+        )
 
 @client.tree.command(name="restart_server", description="Restart the Palworld server")
 @is_owner()

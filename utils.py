@@ -10,26 +10,39 @@ playlists = {}
 loop_status = {}
 
 async def check_palworld_server():
-    command = "/home/pwserver/pwserver details"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
-    status_output = result.stdout
+    try:
+        command = "/home/pwserver/pwserver details"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        status_output = result.stdout
 
-    # Remove ANSI escape codes for more reliable regex matching
-    ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
-    cleaned_output = ansi_escape.sub('', status_output)
+        # If the command failed but we got output in stderr
+        if result.returncode != 0:
+            return (
+                "Error", 
+                "N/A", 
+                "N/A", 
+                "STOPPED" if "not running" in result.stderr.lower() else "ERROR"
+            )
 
-    # Extracting the 'Internet IP', 'CPU Used' and 'Mem Used' sections
-    internet_ip = re.search(r"Internet IP:\s*(.+)", cleaned_output)
-    cpu_usage = re.search(r"CPU Used:\s*(.+?)%", cleaned_output)
-    mem_usage = re.search(r"Mem Used:\s*(.+)%", cleaned_output)
-    server_status_search = re.search(r"Status:\s*(\w+)", cleaned_output)
+        # Remove ANSI escape codes for more reliable regex matching
+        ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+        cleaned_output = ansi_escape.sub('', status_output)
 
-    internet_ip = internet_ip.group(1) if internet_ip else "Not Found"
-    cpu_usage = f"CPU Used: {cpu_usage.group(1)}%" if cpu_usage else "Not Found"
-    mem_usage = f"Mem Used: {mem_usage.group(1)}%" if mem_usage else "Not Found"
-    server_status = server_status_search.group(1) if server_status_search else "Not Found"
+        # Extracting the sections
+        internet_ip = re.search(r"Internet IP:\s*(.+)", cleaned_output)
+        cpu_usage = re.search(r"CPU Used:\s*(.+?)%", cleaned_output)
+        mem_usage = re.search(r"Mem Used:\s*(.+)%", cleaned_output)
+        server_status_search = re.search(r"Status:\s*(\w+)", cleaned_output)
 
-    return internet_ip, cpu_usage, mem_usage, server_status
+        internet_ip = internet_ip.group(1) if internet_ip else "Not Found"
+        cpu_usage = f"CPU Used: {cpu_usage.group(1)}%" if cpu_usage else "Not Found"
+        mem_usage = f"Mem Used: {mem_usage.group(1)}%" if mem_usage else "Not Found"
+        server_status = server_status_search.group(1) if server_status_search else "Not Found"
+
+        return internet_ip, cpu_usage, mem_usage, server_status
+
+    except Exception as e:
+        return f"Error: {str(e)}", "N/A", "N/A", "ERROR"
 
 async def restart_palworld_server():
     command = "/home/pwserver/pwserver restart"

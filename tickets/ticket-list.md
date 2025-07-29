@@ -25,6 +25,7 @@ _No low priority tickets yet_
 
 ## Completed Tickets
 - 🟢 [TICKET-001](./TICKET-001-cobbleverse-server-commands.md) - Implement Cobbleverse Server Management Commands (Completed: 2025-01-29)
+- 🟢 [TICKET-002](./TICKET-002-refactor-to-cogs.md) - Refactor Discord Bot Code into Cogs (Completed: 2025-01-29)
 
 ## Cancelled/Archived Tickets
 _No cancelled tickets yet_

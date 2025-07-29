@@ -7,8 +7,7 @@ This is a versatile Discord bot that provides music playback functionality and g
 ## Key Objectives
 
 - **Music Playback**: Provide YouTube music playback with queue management, playback controls, and search functionality
-- **Palworld Server Management**: Monitor and control a Palworld game server with status checks, resource monitoring, and administrative controls
-- **Cobbleverse Server Management**: Implement new functionality to monitor and control a Minecraft Cobbleverse server (upcoming feature)
+- **Cobbleverse Server Management**: Monitor and control a Minecraft Cobbleverse server with status checks, resource monitoring, and administrative controls
 - **Self-Hosted Infrastructure**: Deploy and manage the bot on a Beelink mini PC with proper monitoring and reliability
 
 ## Project Structure
@@ -19,10 +18,14 @@ This is a versatile Discord bot that provides music playback functionality and g
 ├── .claude/           # Claude Code configuration (auto-generated)
 │   └── agents/        # Project-specific agent overrides
 ├── agents/            # Custom agents for specialized tasks
+├── cogs/              # Bot functionality organized into cogs
+│   ├── music.py       # Music playback commands and functionality
+│   └── cobbleverse.py # Cobbleverse server management
 ├── docs/              # Project documentation
 ├── plans/             # Project plans and architectural documents
 ├── tickets/           # Task tickets and issues
-├── main.py            # Main bot entry point with slash commands
+├── main.py            # Legacy monolithic bot entry point
+├── main_cogs.py       # Modern cog-based bot entry point
 ├── bot_tasks.py       # Background tasks (status updates)
 ├── utils.py           # Utility functions for server management and music
 ├── requirements.txt   # Python dependencies
@@ -42,7 +45,8 @@ This is a versatile Discord bot that provides music playback functionality and g
 
 ### Bot Architecture
 
-- **Slash Commands**: All user interactions use Discord slash commands (via `@client.tree.command`)
+- **Cog-Based Design**: Bot functionality is organized into Discord.py cogs for modularity and maintainability
+- **Slash Commands**: All user interactions use Discord slash commands (via `@commands.Cog.slash_command`)
 - **Owner-Only Commands**: Use the `@is_owner()` decorator for sensitive commands
 - **Error Handling**: Implement proper error handling with user-friendly messages
 - **Async Operations**: Use async/await for all Discord operations and subprocess calls
@@ -73,18 +77,18 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the bot
-python main.py
+# Run the bot (modern cog-based version)
+python main_cogs.py
 
 # Run the bot in background using screen
 screen -S discordbot
 source venv/bin/activate
-python main.py
+python main_cogs.py
 # Press Ctrl+A then D to detach from screen
 # To reattach: screen -r discordbot
 
-# Check Palworld server status (on host)
-/home/pwserver/pwserver details
+# Check Cobbleverse server status (on host)
+cd /home/tempeste/Drive2_symlink/cobbleverse && ./cobbleverse status
 
 # Environment setup (create .env file with):
 # BOT_TOKEN=your_discord_bot_token
@@ -109,17 +113,22 @@ python main.py
    - `/shuffle` - Shuffle the queue
    - `/loop` - Toggle loop mode
 
-2. **Palworld Server Commands**:
-   - `/check_server` - Display server status, IP, and resource usage
-   - `/restart_server` - Restart Palworld server (owner only)
-   - `/start_server` - Start Palworld server
-   - `/stop_server` - Stop Palworld server (owner only)
+2. **Cobbleverse Server Commands**:
+   - `/cobbleverse status` - Display server status and player count
+   - `/cobbleverse start` - Start Cobbleverse server (owner only)
+   - `/cobbleverse stop` - Stop Cobbleverse server (owner only)
+   - `/cobbleverse restart` - Restart Cobbleverse server (owner only)
+
+3. **Developer Commands** (available in main_cogs.py):
+   - `/reload <cog>` - Reload a specific cog without restarting bot (owner only)
+   - `/load <cog>` - Load a new cog (owner only)
+   - `/unload <cog>` - Unload a cog (owner only)
+   - `/list_cogs` - List all available cogs and their status
 
 ### Server Locations
 
 - **Bot Location**: `/home/tempeste/dev/discordBot`
-- **Palworld Server**: `/home/pwserver/` (managed via pwserver script)
-- **Cobbleverse Server**: `/home/tempeste/Drive2_symlink/cobbleverse` (upcoming feature)
+- **Cobbleverse Server**: `/home/tempeste/Drive2_symlink/cobbleverse`
 
 ### Dependencies
 
@@ -131,15 +140,18 @@ python main.py
 
 ### Background Tasks
 
-- Bot status updates every 10 minutes showing Palworld server resource usage
+- Bot status updates every 10 minutes showing Cobbleverse server status and player count
 
 ### Upcoming Features
 
-- Cobbleverse (Minecraft) server management commands
-- Refactor functionality into cogs for better organization
 - Docker containerization
 - Prometheus monitoring integration
 - CI/CD pipeline setup
+
+### Completed Features
+
+- ✅ Cobbleverse (Minecraft) server management commands
+- ✅ Refactor functionality into cogs for better organization
 
 ## Agents
 
@@ -162,10 +174,10 @@ The project uses specialized agents for different aspects of development:
    - Use **coder** to implement fixes
    - Use **checker** to verify fixes
 
-3. **Refactoring to Cogs**:
+3. **Adding New Cogs**:
    - Use **planner** to design cog structure
    - Use **python-pro** for idiomatic Python patterns
-   - Use **coder** to implement refactoring
+   - Use **coder** to implement the new cog
    - Use **test-automator** to ensure functionality
 
 ## Tickets
@@ -205,7 +217,7 @@ Before starting any task:
 
 ### Architecture Considerations
 
-1. **Modular Design**: The bot is currently monolithic in `main.py`. Future refactoring should organize features into cogs (Music, PalworldServer, CobbleverseServer)
+1. **Modular Design**: The bot uses a cog-based architecture with features organized into separate modules (Music, Cobbleverse). Each cog is self-contained and can be loaded/unloaded independently
 
 2. **Error Handling**: Always provide user-friendly error messages in Discord embeds rather than raw error output
 
@@ -221,6 +233,8 @@ Before starting any task:
 - Test with different YouTube URL formats (videos, playlists, searches)
 - Monitor bot performance on the Beelink mini PC to ensure resource efficiency
 - Keep sensitive commands (server stop/restart) owner-only for security
+- When adding new functionality, create a new cog in the `/cogs` directory
+- Use the bot's developer commands to reload cogs during development without restarting
 
 ### Future Considerations
 

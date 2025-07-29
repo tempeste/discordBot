@@ -28,6 +28,7 @@ _No low priority tickets yet_
 - 🟢 [TICKET-002](./TICKET-002-refactor-to-cogs.md) - Refactor Discord Bot Code into Cogs (Completed: 2025-01-29)
 - 🟢 [TICKET-003](./TICKET-003-fix-youtube-extraction-error.md) - Fix YouTube Extraction Error (403 Forbidden) (Completed: 2025-01-30)
 - 🟢 [TICKET-005](./TICKET-005-fix-queue-loop-logic.md) - Fix Queue and Loop Logic Issues (Completed: 2025-01-30)
+- 🟢 [TICKET-006](./TICKET-006-refactor-utils-separation.md) - Refactor utils.py - Separate Music and Server Utilities (Completed: 2025-01-30)
 
 ## Cancelled/Archived Tickets
 _No cancelled tickets yet_

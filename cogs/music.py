@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import utils
+from utils import music_utils
 import yt_dlp
 from discord.utils import get
 import os
@@ -62,7 +62,7 @@ class Music(commands.Cog):
             await interaction.response.send_message("YouTube search is currently disabled. Please enable it first with /enable_youtube command.")
             return
         
-        response = utils.search_youtube(self.youtube, search_query, interaction.user.id)
+        response = music_utils.search_youtube(self.youtube, search_query, interaction.user.id)
         
         if not response or "items" not in response:
             await interaction.response.send_message("No results found or an error occurred.")
@@ -93,7 +93,7 @@ class Music(commands.Cog):
             voice_client = await voice_channel.connect()
         
         if query.isdigit() and 1 <= int(query) <= 5:
-            last_search = utils.get_last_search(interaction.user.id)
+            last_search = music_utils.get_last_search(interaction.user.id)
             if not last_search:
                 await interaction.followup.send("Please use the /search command first.")
                 return
@@ -105,7 +105,7 @@ class Music(commands.Cog):
                 await interaction.followup.send("YouTube search is currently disabled. Please enable it first with /enable_youtube command.")
                 return
             
-            search_response = utils.search_youtube(self.youtube, query, interaction.user.id)
+            search_response = music_utils.search_youtube(self.youtube, query, interaction.user.id)
             if not search_response or "items" not in search_response:
                 await interaction.followup.send("No results found or an error occurred.")
                 return
@@ -125,10 +125,10 @@ class Music(commands.Cog):
                 info = ydl.extract_info(video_url, download=False)
                 title = info['title']
             
-            utils.add_to_playlist(interaction.guild.id, video_url, title, interaction.user.name)
+            music_utils.add_to_playlist(interaction.guild.id, video_url, title, interaction.user.name)
             
             if not voice_client.is_playing():
-                await utils.play_next(self.bot, interaction.guild.id, interaction.channel)
+                await music_utils.play_next(self.bot, interaction.guild.id, interaction.channel)
                 await interaction.followup.send(f"Now playing: {title}\nAdded to server playlist by {interaction.user.name}")
             else:
                 await interaction.followup.send(f"Added to playlist: {title} (added by {interaction.user.name})")
@@ -166,8 +166,8 @@ class Music(commands.Cog):
     
     @app_commands.command(name="view_playlist", description="View the server's playlist")
     async def view_playlist(self, interaction: discord.Interaction):
-        current = utils.get_currently_playing(interaction.guild.id)
-        playlist = utils.get_playlist(interaction.guild.id)
+        current = music_utils.get_currently_playing(interaction.guild.id)
+        playlist = music_utils.get_playlist(interaction.guild.id)
         
         if not current and not playlist:
             await interaction.response.send_message("The server playlist is empty.")
@@ -189,16 +189,16 @@ class Music(commands.Cog):
             message += "*No songs in queue*\n"
         
         # Show loop status
-        if utils.is_looping(interaction.guild.id):
+        if music_utils.is_looping(interaction.guild.id):
             message += "\n🔁 **Loop mode is ON**"
         
         await interaction.response.send_message(message)
     
     @app_commands.command(name="shuffle_playlist", description="Shuffle the server's playlist")
     async def shuffle_playlist(self, interaction: discord.Interaction):
-        utils.shuffle_playlist(interaction.guild.id)
+        music_utils.shuffle_playlist(interaction.guild.id)
         await interaction.response.send_message("The server playlist has been shuffled.")
-        playlist = utils.get_playlist(interaction.guild.id)
+        playlist = music_utils.get_playlist(interaction.guild.id)
         if playlist:
             message = "Server playlist:\n"
             for i, (url, title, added_by) in enumerate(playlist, start=1):
@@ -208,7 +208,7 @@ class Music(commands.Cog):
     @app_commands.command(name="remove_from_playlist", description="Remove a song from the server's playlist")
     @app_commands.describe(index="The number of the song to remove")
     async def remove_from_playlist(self, interaction: discord.Interaction, index: int):
-        removed = utils.remove_from_playlist(interaction.guild.id, index - 1)
+        removed = music_utils.remove_from_playlist(interaction.guild.id, index - 1)
         if removed:
             await interaction.response.send_message(f"Removed '{removed[1]}' from the server playlist.")
         else:
@@ -221,7 +221,7 @@ class Music(commands.Cog):
     
     @app_commands.command(name="loop", description="Toggle looping of the current playlist")
     async def loop(self, interaction: discord.Interaction):
-        is_looping = utils.toggle_loop(interaction.guild.id)
+        is_looping = music_utils.toggle_loop(interaction.guild.id)
         if is_looping:
             await interaction.response.send_message("Playlist looping is now ON.")
         else:
@@ -229,7 +229,7 @@ class Music(commands.Cog):
     
     @app_commands.command(name="now_playing", description="Show the currently playing song")
     async def now_playing(self, interaction: discord.Interaction):
-        current = utils.get_currently_playing(interaction.guild.id)
+        current = music_utils.get_currently_playing(interaction.guild.id)
         if current:
             url, title, added_by = current
             voice_client = interaction.guild.voice_client
@@ -241,7 +241,7 @@ class Music(commands.Cog):
                 color=discord.Color.blue()
             )
             
-            if utils.is_looping(interaction.guild.id):
+            if music_utils.is_looping(interaction.guild.id):
                 embed.set_footer(text="🔁 Loop mode is ON")
             
             await interaction.response.send_message(embed=embed)
@@ -257,7 +257,7 @@ class Music(commands.Cog):
                 voice_client.stop()
             
             # Clear playlist and state
-            utils.clear_playlist(interaction.guild.id)
+            music_utils.clear_playlist(interaction.guild.id)
             
             # Disconnect
             await voice_client.disconnect()

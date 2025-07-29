@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import utils
+from utils import cobbleverse_utils
 import os
 from dotenv import load_dotenv
 
@@ -24,7 +24,7 @@ class Cobbleverse(commands.Cog):
     async def cobbleverse_status(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer()
-            server_ip, cpu_usage, mem_usage, server_status = await utils.check_cobbleverse_server()
+            server_ip, cpu_usage, mem_usage, server_status = await cobbleverse_utils.check_cobbleverse_server()
             
             if server_ip.startswith("Error"):
                 await interaction.followup.send(
@@ -57,7 +57,7 @@ class Cobbleverse(commands.Cog):
     async def cobbleverse_start(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer()
-            returncode, stdout, stderr = await utils.start_cobbleverse_server()
+            returncode, stdout, stderr = await cobbleverse_utils.start_cobbleverse_server()
             
             if returncode is None:
                 await interaction.followup.send("⏱️ Timeout occurred while starting the Cobbleverse server.")
@@ -75,7 +75,7 @@ class Cobbleverse(commands.Cog):
     async def cobbleverse_stop(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer()
-            returncode, stdout, stderr = await utils.stop_cobbleverse_server()
+            returncode, stdout, stderr = await cobbleverse_utils.stop_cobbleverse_server()
             
             if returncode is None:
                 await interaction.followup.send("⏱️ Timeout occurred while stopping the Cobbleverse server.")
@@ -93,7 +93,7 @@ class Cobbleverse(commands.Cog):
     async def cobbleverse_restart(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer()
-            returncode, stdout, stderr = await utils.restart_cobbleverse_server()
+            returncode, stdout, stderr = await cobbleverse_utils.restart_cobbleverse_server()
             
             if returncode is None:
                 await interaction.followup.send("⏱️ Timeout occurred while restarting the Cobbleverse server.")

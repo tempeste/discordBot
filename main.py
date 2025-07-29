@@ -15,6 +15,7 @@ load_dotenv()
 bot_token = os.getenv("BOT_TOKEN")
 gcp_api_key = os.getenv("GCP_API_KEY")
 owner_id = os.getenv("OWNER_ID")
+cobbleverse_domain = os.getenv("COBBLEVERSE_DOMAIN", "cobbleverse.example.com")
 
 # Init client
 intents = discord.Intents.default()
@@ -180,9 +181,10 @@ async def resume(interaction: discord.Interaction):
 async def skip(interaction: discord.Interaction):
     voice_client = interaction.guild.voice_client
     if voice_client and voice_client.is_playing():
+        await interaction.response.defer()
         voice_client.stop()
-        await interaction.response.send_message("Skipped the current song.")
         await utils.play_next(client, interaction.guild.id, interaction.channel)
+        await interaction.followup.send("Skipped the current song.")
     else:
         await interaction.response.send_message("No song is currently playing.")
 
@@ -236,107 +238,28 @@ async def stop(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("I'm not connected to a voice channel.")
 
-@client.tree.command(name="check_server", description="Check Palworld server status")
-async def check_server(interaction: discord.Interaction):
-    try:
-        internet_ip, cpu_usage, mem_usage, server_status = await utils.check_palworld_server()
 
-        if internet_ip.startswith("Error"):
-            await interaction.response.send_message(
-                f"❌ Failed to get server status: {internet_ip}", 
-                ephemeral=True
-            )
-            return
 
-        color = 0x2ecc71 if server_status == "STARTED" else 0xe74c3c
-        thumbnail_url = "https://static.wikia.nocookie.net/palworld/images/3/3e/Screen_%281%29.jpg/revision/latest/scale-to-width-down/1200?cb=20210911235311" if server_status == "STARTED" else "https://cdn.vox-cdn.com/uploads/chorus_image/image/73067966/ss_8ef8a16df5e357df5341efdb814192835814107f.0.jpg"
 
-        embed = discord.Embed(title="🌐 Palworld Server Status", color=color)
-        embed.add_field(name="🔗 Internet IP", value=internet_ip, inline=True)
-        embed.add_field(name="🖥️ CPU Usage", value=cpu_usage, inline=True)
-        embed.add_field(name="💾 Memory Usage", value=mem_usage, inline=True)
-
-        embed.set_footer(text=f"Server Status: {server_status}")
-        embed.set_thumbnail(url=thumbnail_url)
-        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
-
-        await interaction.response.send_message(embed=embed)
-    except Exception as e:
-        await interaction.response.send_message(
-            f"❌ An unexpected error occurred: {str(e)}", 
-            ephemeral=True
-        )
-
-@client.tree.command(name="restart_server", description="Restart the Palworld server")
-@is_owner()
-async def restart_server(interaction: discord.Interaction):
-    try:
-        await interaction.response.defer()
-        returncode, stdout, stderr = await utils.restart_palworld_server()
-
-        if returncode is None:
-            await interaction.followup.send("Timeout occurred while restarting the LGSM server.")
-            return
-
-        if returncode == 0:
-            await interaction.followup.send(f"LGSM server restarted successfully.\n```{stdout}```")
-        else:
-            await interaction.followup.send(f"Failed to restart LGSM server.\nError:```{stderr}```")
-    except Exception as e:
-        await interaction.followup.send(f"An error occurred: {e}")
-
-@client.tree.command(name="stop_server", description="Stop the Palworld server")
-@is_owner()
-async def stop_server(interaction: discord.Interaction):
-    try:
-        await interaction.response.defer()
-        returncode, stdout, stderr = await utils.stop_palworld_server()
-
-        if returncode is None:
-            await interaction.followup.send("Timeout occurred while stopping the LGSM server.")
-            return
-
-        if returncode == 0:
-            await interaction.followup.send(f"LGSM server stopped successfully.\n```{stdout}```")
-        else:
-            await interaction.followup.send(f"Failed to stop LGSM server.\nError:```{stderr}```")
-    except Exception as e:
-        await interaction.followup.send(f"An error occurred: {e}")
-
-@client.tree.command(name="start_server", description="Start the Palworld server")
-async def start_server(interaction: discord.Interaction):
-    try:
-        await interaction.response.defer()
-        returncode, stdout, stderr = await utils.start_palworld_server()
-
-        if returncode is None:
-            await interaction.followup.send("Timeout occurred while starting the LGSM server.")
-            return
-
-        if returncode == 0:
-            await interaction.followup.send(f"LGSM server started successfully.\n```{stdout}```")
-        else:
-            await interaction.followup.send(f"Failed to start LGSM server.\nError:```{stderr}```")
-    except Exception as e:
-        await interaction.followup.send(f"An error occurred: {e}")
 
 @client.tree.command(name="check_cobbleverse", description="Check Cobbleverse server status")
 async def check_cobbleverse(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         server_ip, cpu_usage, mem_usage, server_status = await utils.check_cobbleverse_server()
 
         if server_ip.startswith("Error"):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ Failed to get server status: {server_ip}", 
                 ephemeral=True
             )
             return
 
-        color = 0x2ecc71 if server_status == "RUNNING" else 0xe74c3c
-        thumbnail_url = "https://www.minecraft.net/content/dam/games/minecraft/logos/Minecraft-logo.png" if server_status == "RUNNING" else "https://www.minecraft.net/content/dam/games/minecraft/screenshots/carousel-alex-sunset.jpg"
+        color = 0x2ecc71 if server_status == "STARTED" else 0xe74c3c
+        thumbnail_url = "https://www.minecraft.net/content/dam/games/minecraft/logos/Minecraft-logo.png" if server_status == "STARTED" else "https://www.minecraft.net/content/dam/games/minecraft/screenshots/carousel-alex-sunset.jpg"
 
         embed = discord.Embed(title="⛏️ Cobbleverse Server Status", color=color)
-        embed.add_field(name="🔗 Server IP", value=server_ip, inline=True)
+        embed.add_field(name="🔗 Connection", value=cobbleverse_domain, inline=True)
         embed.add_field(name="🖥️ CPU Usage", value=cpu_usage, inline=True)
         embed.add_field(name="💾 Memory Usage", value=mem_usage, inline=True)
 
@@ -344,9 +267,9 @@ async def check_cobbleverse(interaction: discord.Interaction):
         embed.set_thumbnail(url=thumbnail_url)
         embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
     except Exception as e:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"❌ An unexpected error occurred: {str(e)}", 
             ephemeral=True
         )

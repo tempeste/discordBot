@@ -9,70 +9,7 @@ last_searches = {}
 playlists = {}
 loop_status = {}
 
-async def check_palworld_server():
-    try:
-        command = "/home/pwserver/pwserver details"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        status_output = result.stdout
 
-        # If the command failed but we got output in stderr
-        if result.returncode != 0:
-            return (
-                "Error", 
-                "N/A", 
-                "N/A", 
-                "STOPPED" if "not running" in result.stderr.lower() else "ERROR"
-            )
-
-        # Remove ANSI escape codes for more reliable regex matching
-        ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
-        cleaned_output = ansi_escape.sub('', status_output)
-
-        # Extracting the sections
-        internet_ip = re.search(r"Internet IP:\s*(.+)", cleaned_output)
-        cpu_usage = re.search(r"CPU Used:\s*(.+?)%", cleaned_output)
-        mem_usage = re.search(r"Mem Used:\s*(.+)%", cleaned_output)
-        server_status_search = re.search(r"Status:\s*(\w+)", cleaned_output)
-
-        internet_ip = internet_ip.group(1) if internet_ip else "Not Found"
-        cpu_usage = f"CPU Used: {cpu_usage.group(1)}%" if cpu_usage else "Not Found"
-        mem_usage = f"Mem Used: {mem_usage.group(1)}%" if mem_usage else "Not Found"
-        server_status = server_status_search.group(1) if server_status_search else "Not Found"
-
-        return internet_ip, cpu_usage, mem_usage, server_status
-
-    except Exception as e:
-        return f"Error: {str(e)}", "N/A", "N/A", "ERROR"
-
-async def restart_palworld_server():
-    command = "/home/pwserver/pwserver restart"
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    try:
-        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
-        return process.returncode, stdout, stderr
-    except asyncio.TimeoutError:
-        return None, None, "Timeout"
-    
-async def start_palworld_server():
-    command = "/home/pwserver/pwserver start"
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    try:
-        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
-        return process.returncode, stdout, stderr
-    except asyncio.TimeoutError:
-        return None, None, "Timeout"
-    
-async def stop_palworld_server():
-    command = "/home/pwserver/pwserver stop"
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    try:
-        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
-        return process.returncode, stdout, stderr
-    except asyncio.TimeoutError:
-        return None, None, "Timeout"
 
 def search_youtube(youtube, search_query, user_id):
     request = youtube.search().list(
@@ -123,16 +60,22 @@ def is_looping(guild_id):
 async def check_cobbleverse_server():
     try:
         command = "/home/tempeste/Drive2_symlink/cobbleverse/mcserver details"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        status_output = result.stdout
+        process = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        status_output = stdout.decode('utf-8')
+        stderr_output = stderr.decode('utf-8')
 
         # If the command failed but we got output in stderr
-        if result.returncode != 0:
+        if process.returncode != 0:
             return (
                 "Error", 
                 "N/A", 
                 "N/A", 
-                "STOPPED" if "not running" in result.stderr.lower() else "ERROR"
+                "STOPPED" if "not running" in stderr_output.lower() else "ERROR"
             )
 
         # Remove ANSI escape codes for more reliable regex matching
@@ -234,7 +177,7 @@ async def play_next(client, guild_id, text_channel):
                 await voice_client.disconnect()
             await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")
     else:
-        voice_client = discord.utils.get(client.voice_clients, guild__id=guild_id)
+        voice_client = discord.utils.get(client.voice_clients, guild_id=guild_id)
         if voice_client:
             await voice_client.disconnect()
         await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")

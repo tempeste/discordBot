@@ -64,11 +64,24 @@ This is a versatile Discord bot that provides music playback functionality and g
 ## Common Commands
 
 ```bash
+# Create virtual environment (first time setup)
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
 # Install dependencies
 pip install -r requirements.txt
 
 # Run the bot
 python main.py
+
+# Run the bot in background using screen
+screen -S discordbot
+source venv/bin/activate
+python main.py
+# Press Ctrl+A then D to detach from screen
+# To reattach: screen -r discordbot
 
 # Check Palworld server status (on host)
 /home/pwserver/pwserver details

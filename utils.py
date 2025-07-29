@@ -120,6 +120,71 @@ def toggle_loop(guild_id):
 def is_looping(guild_id):
     return loop_status.get(guild_id, False)
         
+async def check_cobbleverse_server():
+    try:
+        command = "/home/tempeste/Drive2_symlink/cobbleverse/mcserver details"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        status_output = result.stdout
+
+        # If the command failed but we got output in stderr
+        if result.returncode != 0:
+            return (
+                "Error", 
+                "N/A", 
+                "N/A", 
+                "STOPPED" if "not running" in result.stderr.lower() else "ERROR"
+            )
+
+        # Remove ANSI escape codes for more reliable regex matching
+        ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+        cleaned_output = ansi_escape.sub('', status_output)
+
+        # Extracting the sections
+        internet_ip = re.search(r"Internet IP:\s*(.+?):\d+", cleaned_output)
+        cpu_usage = re.search(r"CPU Used:\s*(.+?)%", cleaned_output)
+        mem_usage = re.search(r"Mem Used:\s*(.+)%", cleaned_output)
+        server_status_search = re.search(r"Status:\s*(\w+)", cleaned_output)
+
+        internet_ip = internet_ip.group(1) if internet_ip else "Not Found"
+        cpu_usage = f"CPU Used: {cpu_usage.group(1)}%" if cpu_usage else "Not Found"
+        mem_usage = f"Mem Used: {mem_usage.group(1)}%" if mem_usage else "Not Found"
+        server_status = server_status_search.group(1) if server_status_search else "Not Found"
+
+        return internet_ip, cpu_usage, mem_usage, server_status
+
+    except Exception as e:
+        return f"Error: {str(e)}", "N/A", "N/A", "ERROR"
+
+async def start_cobbleverse_server():
+    command = "/home/tempeste/Drive2_symlink/cobbleverse/mcserver start"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    try:
+        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
+        return process.returncode, stdout, stderr
+    except asyncio.TimeoutError:
+        return None, None, "Timeout"
+    
+async def stop_cobbleverse_server():
+    command = "/home/tempeste/Drive2_symlink/cobbleverse/mcserver stop"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    try:
+        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
+        return process.returncode, stdout, stderr
+    except asyncio.TimeoutError:
+        return None, None, "Timeout"
+
+async def restart_cobbleverse_server():
+    command = "/home/tempeste/Drive2_symlink/cobbleverse/mcserver restart"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    try:
+        stdout, stderr = await asyncio.wait_for(asyncio.to_thread(process.communicate), timeout=120)  # Timeout in seconds
+        return process.returncode, stdout, stderr
+    except asyncio.TimeoutError:
+        return None, None, "Timeout"
+
 async def play_next(client, guild_id, text_channel):
     playlist = get_playlist(guild_id)
     if playlist or is_looping(guild_id):
@@ -152,7 +217,7 @@ async def play_next(client, guild_id, text_channel):
                     url2 = info['url']
                     source = await discord.FFmpegOpusAudio.from_probe(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
                 
-                voice_client = discord.utils.get(client.voice_clients, guild__id=guild_id)
+                voice_client = discord.utils.get(client.voice_clients, guild_id=guild_id)
                 if voice_client:
                     def after_playing(error):
                         asyncio.run_coroutine_threadsafe(play_next(client, guild_id, text_channel), client.loop)
@@ -164,7 +229,7 @@ async def play_next(client, guild_id, text_channel):
             except Exception as e:
                 await text_channel.send(f"An error occurred while trying to play the next song: {str(e)}")
         else:
-            voice_client = discord.utils.get(client.voice_clients, guild__id=guild_id)
+            voice_client = discord.utils.get(client.voice_clients, guild_id=guild_id)
             if voice_client:
                 await voice_client.disconnect()
             await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")

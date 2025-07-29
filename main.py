@@ -1,7 +1,6 @@
 import discord
 from discord import app_commands
 import os
-import subprocess
 import utils
 import bot_tasks
 from discord.ext import commands
@@ -320,6 +319,91 @@ async def start_server(interaction: discord.Interaction):
             await interaction.followup.send(f"Failed to start LGSM server.\nError:```{stderr}```")
     except Exception as e:
         await interaction.followup.send(f"An error occurred: {e}")
+
+@client.tree.command(name="check_cobbleverse", description="Check Cobbleverse server status")
+async def check_cobbleverse(interaction: discord.Interaction):
+    try:
+        server_ip, cpu_usage, mem_usage, server_status = await utils.check_cobbleverse_server()
+
+        if server_ip.startswith("Error"):
+            await interaction.response.send_message(
+                f"❌ Failed to get server status: {server_ip}", 
+                ephemeral=True
+            )
+            return
+
+        color = 0x2ecc71 if server_status == "RUNNING" else 0xe74c3c
+        thumbnail_url = "https://www.minecraft.net/content/dam/games/minecraft/logos/Minecraft-logo.png" if server_status == "RUNNING" else "https://www.minecraft.net/content/dam/games/minecraft/screenshots/carousel-alex-sunset.jpg"
+
+        embed = discord.Embed(title="⛏️ Cobbleverse Server Status", color=color)
+        embed.add_field(name="🔗 Server IP", value=server_ip, inline=True)
+        embed.add_field(name="🖥️ CPU Usage", value=cpu_usage, inline=True)
+        embed.add_field(name="💾 Memory Usage", value=mem_usage, inline=True)
+
+        embed.set_footer(text=f"Server Status: {server_status}")
+        embed.set_thumbnail(url=thumbnail_url)
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
+
+        await interaction.response.send_message(embed=embed)
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ An unexpected error occurred: {str(e)}", 
+            ephemeral=True
+        )
+
+@client.tree.command(name="start_cobbleverse", description="Start the Cobbleverse server")
+@is_owner()
+async def start_cobbleverse(interaction: discord.Interaction):
+    try:
+        await interaction.response.defer()
+        returncode, stdout, stderr = await utils.start_cobbleverse_server()
+
+        if returncode is None:
+            await interaction.followup.send("⏱️ Timeout occurred while starting the Cobbleverse server.")
+            return
+
+        if returncode == 0:
+            await interaction.followup.send(f"✅ Cobbleverse server started successfully.\n```{stdout}```")
+        else:
+            await interaction.followup.send(f"❌ Failed to start Cobbleverse server.\nError:```{stderr}```")
+    except Exception as e:
+        await interaction.followup.send(f"❌ An error occurred: {e}")
+
+@client.tree.command(name="stop_cobbleverse", description="Stop the Cobbleverse server")
+@is_owner()
+async def stop_cobbleverse(interaction: discord.Interaction):
+    try:
+        await interaction.response.defer()
+        returncode, stdout, stderr = await utils.stop_cobbleverse_server()
+
+        if returncode is None:
+            await interaction.followup.send("⏱️ Timeout occurred while stopping the Cobbleverse server.")
+            return
+
+        if returncode == 0:
+            await interaction.followup.send(f"✅ Cobbleverse server stopped successfully.\n```{stdout}```")
+        else:
+            await interaction.followup.send(f"❌ Failed to stop Cobbleverse server.\nError:```{stderr}```")
+    except Exception as e:
+        await interaction.followup.send(f"❌ An error occurred: {e}")
+
+@client.tree.command(name="restart_cobbleverse", description="Restart the Cobbleverse server")
+@is_owner()
+async def restart_cobbleverse(interaction: discord.Interaction):
+    try:
+        await interaction.response.defer()
+        returncode, stdout, stderr = await utils.restart_cobbleverse_server()
+
+        if returncode is None:
+            await interaction.followup.send("⏱️ Timeout occurred while restarting the Cobbleverse server.")
+            return
+
+        if returncode == 0:
+            await interaction.followup.send(f"✅ Cobbleverse server restarted successfully.\n```{stdout}```")
+        else:
+            await interaction.followup.send(f"❌ Failed to restart Cobbleverse server.\nError:```{stderr}```")
+    except Exception as e:
+        await interaction.followup.send(f"❌ An error occurred: {e}")
 
 if __name__ == "__main__":
     client.run(bot_token)

@@ -64,7 +64,7 @@ class DiscordBot(commands.Bot):
         # Add developer cog if not already loaded
         if not any("developer" in ext for ext in self.extensions):
             try:
-                self.add_cog(DeveloperCog(self))
+                await self.add_cog(DeveloperCog(self))
                 logger.info("Added internal developer cog")
             except Exception as e:
                 logger.error(f"Failed to add developer cog: {e}")

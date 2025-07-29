@@ -160,7 +160,12 @@ async def play_next(client, guild_id, text_channel):
                     url2 = info['url']
                     source = await discord.FFmpegOpusAudio.from_probe(url2, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'})
                 
-                voice_client = discord.utils.get(client.voice_clients, guild_id=guild_id)
+                voice_client = None
+                for vc in client.voice_clients:
+                    if vc.guild.id == guild_id:
+                        voice_client = vc
+                        break
+                
                 if voice_client:
                     def after_playing(error):
                         asyncio.run_coroutine_threadsafe(play_next(client, guild_id, text_channel), client.loop)
@@ -172,12 +177,21 @@ async def play_next(client, guild_id, text_channel):
             except Exception as e:
                 await text_channel.send(f"An error occurred while trying to play the next song: {str(e)}")
         else:
-            voice_client = discord.utils.get(client.voice_clients, guild_id=guild_id)
+            voice_client = None
+            for vc in client.voice_clients:
+                if vc.guild.id == guild_id:
+                    voice_client = vc
+                    break
+            
             if voice_client:
                 await voice_client.disconnect()
             await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")
     else:
-        voice_client = discord.utils.get(client.voice_clients, guild_id=guild_id)
+        voice_client = None
+        for vc in client.voice_clients:
+            if vc.guild.id == guild_id:
+                voice_client = vc
+                break
         if voice_client:
             await voice_client.disconnect()
         await text_channel.send("Playlist is empty and looping is off. Disconnected from voice channel.")

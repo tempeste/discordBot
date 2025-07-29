@@ -18,7 +18,7 @@ This file maintains a centralized list of all tickets in the project. Update thi
 _No high priority tickets yet_
 
 ### Medium Priority
-_No medium priority tickets yet_
+- 🔴 [TICKET-004](./TICKET-004-optimize-youtube-extraction.md) - Optimize YouTube Extraction to Avoid Duplicate API Calls
 
 ### Low Priority
 _No low priority tickets yet_
@@ -27,6 +27,7 @@ _No low priority tickets yet_
 - 🟢 [TICKET-001](./TICKET-001-cobbleverse-server-commands.md) - Implement Cobbleverse Server Management Commands (Completed: 2025-01-29)
 - 🟢 [TICKET-002](./TICKET-002-refactor-to-cogs.md) - Refactor Discord Bot Code into Cogs (Completed: 2025-01-29)
 - 🟢 [TICKET-003](./TICKET-003-fix-youtube-extraction-error.md) - Fix YouTube Extraction Error (403 Forbidden) (Completed: 2025-01-30)
+- 🟢 [TICKET-005](./TICKET-005-fix-queue-loop-logic.md) - Fix Queue and Loop Logic Issues (Completed: 2025-01-30)
 
 ## Cancelled/Archived Tickets
 _No cancelled tickets yet_

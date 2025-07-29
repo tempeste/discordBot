@@ -159,21 +159,38 @@ class Music(commands.Cog):
         if voice_client and voice_client.is_playing():
             await interaction.response.defer()
             voice_client.stop()
-            await utils.play_next(self.bot, interaction.guild.id, interaction.channel)
+            # Note: play_next will be called automatically by the after callback
             await interaction.followup.send("Skipped the current song.")
         else:
             await interaction.response.send_message("No song is currently playing.")
     
     @app_commands.command(name="view_playlist", description="View the server's playlist")
     async def view_playlist(self, interaction: discord.Interaction):
+        current = utils.get_currently_playing(interaction.guild.id)
         playlist = utils.get_playlist(interaction.guild.id)
-        if not playlist:
+        
+        if not current and not playlist:
             await interaction.response.send_message("The server playlist is empty.")
             return
         
-        message = "Server playlist:\n"
-        for i, (url, title, added_by) in enumerate(playlist, start=1):
-            message += f"{i}. {title} (added by {added_by})\n<{url}>\n\n"
+        message = ""
+        
+        # Show currently playing song
+        if current:
+            _, title, added_by = current
+            message += f"**Currently Playing:**\n{title} (added by {added_by})\n\n"
+        
+        # Show upcoming songs
+        if playlist:
+            message += "**Up Next:**\n"
+            for i, (url, title, added_by) in enumerate(playlist, start=1):
+                message += f"{i}. {title} (added by {added_by})\n<{url}>\n\n"
+        else:
+            message += "*No songs in queue*\n"
+        
+        # Show loop status
+        if utils.is_looping(interaction.guild.id):
+            message += "\n🔁 **Loop mode is ON**"
         
         await interaction.response.send_message(message)
     
@@ -210,10 +227,39 @@ class Music(commands.Cog):
         else:
             await interaction.response.send_message("Playlist looping is now OFF.")
     
+    @app_commands.command(name="now_playing", description="Show the currently playing song")
+    async def now_playing(self, interaction: discord.Interaction):
+        current = utils.get_currently_playing(interaction.guild.id)
+        if current:
+            url, title, added_by = current
+            voice_client = interaction.guild.voice_client
+            status = "⏸️ Paused" if voice_client and voice_client.is_paused() else "▶️ Playing"
+            
+            embed = discord.Embed(
+                title="Now Playing",
+                description=f"{status}\n\n**{title}**\n\nAdded by: {added_by}\n[Link]({url})",
+                color=discord.Color.blue()
+            )
+            
+            if utils.is_looping(interaction.guild.id):
+                embed.set_footer(text="🔁 Loop mode is ON")
+            
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message("No song is currently playing.")
+    
     @app_commands.command(name="stop", description="Stop playing audio and disconnect")
     async def stop(self, interaction: discord.Interaction):
         voice_client = get(self.bot.voice_clients, guild=interaction.guild)
         if voice_client and voice_client.is_connected():
+            # Stop playback
+            if voice_client.is_playing():
+                voice_client.stop()
+            
+            # Clear playlist and state
+            utils.clear_playlist(interaction.guild.id)
+            
+            # Disconnect
             await voice_client.disconnect()
             await interaction.response.send_message("Disconnected from voice channel and stopped playing.")
         else:
